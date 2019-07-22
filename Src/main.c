@@ -1,5 +1,5 @@
 /* USER CODE BEGIN Header */
-#define DEBUG
+//#define DEBUG
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
@@ -109,7 +109,14 @@ int main(void)
   for(i = 0;(i < 5) && !(fv_1 = getFirmwareVersion(&hspi1)); i++);			// Проверка подключения PN532
   if(i == 5){
 	   HAL_UART_Transmit(&huart1,N_con_A,(sizeof(N_con_A) - 1),1000);
-	   while(1);
+	   HAL_SPI_MspDeInit(&hspi1);
+	   HAL_TIM_Base_MspDeInit(&htim1);
+	   HAL_TIM_Base_MspDeInit(&htim2);
+	   HAL_UART_MspDeInit(&huart1);
+	   HAL_GPIO_DeInit(GPIOB, GPIO_PIN_0|GPIO_PIN_10);
+	   while(1){
+		   __WFI();
+	   }
   }
   SAM_Config(&hspi1);
 

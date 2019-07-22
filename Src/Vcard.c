@@ -1,4 +1,4 @@
-
+// master
 
 #include <stdlib.h>
 #include "Vcard.h"
@@ -8,7 +8,7 @@
 #include "MifClass.h"
 #include "Macros.h"
 
-#define AUT_MAX 5
+#define AUT_MAX 10
 
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim2;
@@ -16,7 +16,7 @@ extern SPI_HandleTypeDef hspi1;
 extern UART_HandleTypeDef huart1;
 extern __IO uint32_t uwTick;
 
-uint8_t Filter[] = {"ZERO FILTER AVAILABLE  !\n\r"};
+uint8_t Filter[] = {"ZERO OR OTP FILTER AVAILABLE  !\n\r"};
 uint8_t razd[] = {"______________________________\n\r"};
 uint32_t TagChal[AUT_MAX], AB1[AUT_MAX], AB2[AUT_MAX];
 uint8_t j_aut, ZeroFilter, GrabOK, EndOfFrame, KeyAB[AUT_MAX], BlockNumber[AUT_MAX];
@@ -30,7 +30,7 @@ uint8_t data_A[FRAME_SIZE][BUFFER_SIZE], data_B[FRAME_SIZE][BUFFER_SIZE];
 uint8_t ndata_A[FRAME_SIZE], ndata_B[FRAME_SIZE];
 uint8_t nd;
 uint8_t uidLength = 4,nuid;  //  UID
-char Tx[512];
+uint8_t Tx[512];
 uint16_t  fv_1;
 
 
@@ -39,7 +39,7 @@ void InitPN532_1(){
 
 	uint16_t Adr;
 	uint8_t r1;
-	static uint8_t r2 =0x13;				// Усиление сигнала
+	static uint8_t r2 =0x13;
 
 	CS_LOW(&hspi1);
 	HAL_Delay(1);
@@ -47,7 +47,7 @@ void InitPN532_1(){
 	while (!(fv_1 = getFirmwareVersion(&hspi1)));
 	SAM_VirtualCard(&hspi1);
 	HAL_Delay(1000);
-	Adr = 0x6106;							// CIU_RFCfg register (6316h)
+	Adr = 0x6106;
 	readRegister(&hspi1, &Adr, &r1, 1);
 	r1 = r2;
 	writeRegister(&hspi1, Adr, r1);
@@ -170,24 +170,26 @@ uint8_t EmulCard(void){
 
 	}
 
+//	prndata();
+
 	AuthNumber++;
 	t = sprintf((char *) Tx,"\n\r%s\n\rAuthentication Number  %d\n\r\
 UID                 0x%2.2X%2.2X%2.2X%2.2X\n\r",razd, AuthNumber,\
 UidCL1[0],UidCL1[1],UidCL1[2],UidCL1[3]);
-	HAL_UART_Transmit(&huart1, (uint8_t *)Tx, t, 1000);
+	HAL_UART_Transmit(&huart1, Tx, t, 1000);
 
 	if(ZeroFilter){
 		HAL_UART_Transmit(&huart1,Filter,(sizeof(Filter) - 1),1000);
 	}
 
 	for(uint8_t i = 0; i <j_aut; i++){
-		t = sprintf((char *) Tx,"\n\r\
+		t = sprintf((char *)Tx,"\n\r\
 KeyNumber  %d        Block %d   Key %c\n\r\
 Tag Challenge       0x%8.8X\n\r\
 Reader Challenge    0x%8.8X\n\r\
 Reader Response     0x%8.8X\n\r", i+1, BlockNumber[i],\
-	k[KeyAB[i]], TagChal[i],AB1[0],AB2[i]);
-		HAL_UART_Transmit(&huart1, (uint8_t *)Tx, t, 1000);
+	k[KeyAB[i]], TagChal[i], AB1[i], AB2[i]);
+		HAL_UART_Transmit(&huart1, Tx, t, 1000);
 	}
 
     return 0;
@@ -199,9 +201,15 @@ void vc(){
 	uint8_t err,t;
 
 	if((err = EmulCard())){
-		t = sprintf((char *) Tx,"\n\rRETURN     %d\n\r",err);
-		HAL_UART_Transmit(&huart1, (uint8_t *)Tx, t, 1000);
-		prndata();
+		if(err == 1){
+			t = sprintf((char *)Tx,"\n\rTimeout !\n\r");
+			HAL_UART_Transmit(&huart1, Tx, t, 1000);
+		}else if(err == 2){
+			t = sprintf((char *)Tx,"\n\rBuffer overflowed !\n\r");
+			HAL_UART_Transmit(&huart1, Tx, t, 1000);
+		}
+
+//		prndata();
 	}
 	HAL_Delay(1000);
 }
