@@ -242,12 +242,12 @@ uint8_t SAM_Config(SPI_HandleTypeDef *hspi ) {
 }
 
 
-uint8_t  readPassiveTargetID( SPI_HandleTypeDef *hspi, uint8_t cardbaudrate, uint8_t * uid, uint8_t * uidLength) {
+uint8_t  readPassiveTargetID( SPI_HandleTypeDef *hspi, uint8_t cardbaudrate, uint8_t * uid, uint8_t * uidLength, uint16_t timeout) {
   pn532_packetbuffer[0] = PN532_COMMAND_INLISTPASSIVETARGET;
   pn532_packetbuffer[1] = 1;  // max 1 cards at once (we can set this to 2 later)
   pn532_packetbuffer[2] = cardbaudrate;
 
-  if (!sendCommandCheckAck( hspi, pn532_packetbuffer, 3, 1000))
+  if (!sendCommandCheckAck( hspi, pn532_packetbuffer, 3, timeout))
   {
     return 0x0;  // no cards read
   }
@@ -255,14 +255,14 @@ uint8_t  readPassiveTargetID( SPI_HandleTypeDef *hspi, uint8_t cardbaudrate, uin
   // wait for a card to enter the field (only possible with I2C)
 
 
-    if (!waitready(hspi, 1000)) {
+    if (!waitready(hspi, timeout)) {
 
       return 0x0;
     }
 
 
   // read data packet
-  readdata( hspi, pn532_packetbuffer, 20, 1000);
+  readdata( hspi, pn532_packetbuffer, 20, timeout);
   // check some basic stuff
 
   /* ISO14443A card response should be in the following format:
@@ -401,7 +401,7 @@ uint8_t     RFConfiguration_A(SPI_HandleTypeDef *hspi){
 	if (! sendCommandCheckAck(hspi, Conf, 13, 1000))
 	  return 0x0;
 
-	readdata(hspi, pn532_packetbuffer, 6, 1000); 
+	readdata(hspi, pn532_packetbuffer, 6, 1000);
 	int offset = 6;
 	return  (pn532_packetbuffer[offset+1] == (PN532_COMMAND_RFCONFIGURATION + 1));
 

@@ -145,7 +145,7 @@
   uint8_t     SAM_VirtualCard(SPI_HandleTypeDef *hspi);
   uint32_t    getFirmwareVersion(SPI_HandleTypeDef *hspi);
   uint8_t     inDataExchange( SPI_HandleTypeDef *hspi, uint8_t * send, uint8_t sendLength, uint8_t * response, uint8_t * responseLength );
-  uint8_t     readPassiveTargetID( SPI_HandleTypeDef *hspi, uint8_t cardbaudrate, uint8_t * uid, uint8_t * uidLength);
+  uint8_t     readPassiveTargetID( SPI_HandleTypeDef *hspi, uint8_t cardbaudrate, uint8_t * uid, uint8_t * uidLength,  uint16_t timeout);
   
   uint8_t     sendCommandCheckAck(SPI_HandleTypeDef *hspi, uint8_t *cmd, uint8_t cmdlen, uint16_t timeout );  
   uint8_t     writeGPIO(SPI_HandleTypeDef *hspi, uint8_t pinstate);

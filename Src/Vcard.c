@@ -211,6 +211,6 @@ void vc(){
 
 //		prndata();
 	}
-	HAL_Delay(1000);
+	HAL_Delay(500);
 }
 

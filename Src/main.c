@@ -38,31 +38,39 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart1;
+DMA_HandleTypeDef hdma_usart1_rx;
 
 /* USER CODE BEGIN PV */
 
-extern uint8_t UidCL1[], uidLength, nuid;  //  UID
-extern char Tx[512];
+extern uint8_t UidCL1[], uidLength;  //  UID
+extern uint8_t Tx[512];
 extern uint16_t  fv_1;
 uint8_t Wait_Tag[] = {"\n\rWaiting Tag"};
 uint8_t N_con_A[] = {"\n\rNot connected PN532_A\n\r"};
 uint8_t CRLF[] = {'\n','\r'};
+uint8_t RxOK;
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_TIM1_Init(void);
+static void MX_DMA_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void HAL_UART_RxCpltCallback( UART_HandleTypeDef *  huart ) {
+
+	RxOK = 1;
+}
 
 /* USER CODE END 0 */
 
@@ -96,10 +104,11 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_TIM1_Init();
+  MX_DMA_Init();
   MX_TIM2_Init();
   MX_SPI1_Init();
   MX_USART1_UART_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
   CS_LOW(&hspi1);
@@ -122,21 +131,42 @@ int main(void)
 
 #ifndef DEBUG
 
+  RxOK = 0;
+  HAL_UART_Receive_DMA(&huart1, Tx, 11);
   HAL_UART_Transmit(&huart1,CRLF,sizeof(CRLF),1000);
-  while( !readPassiveTargetID(&hspi1,PN532_MIFARE_ISO14443A, UidCL1, &uidLength) ){	// Ожидание ключа
+  while(1){	// Ожидание UID
+	  if( readPassiveTargetID(&hspi1,PN532_MIFARE_ISO14443A, UidCL1, &uidLength, 500) ){
+		t = sprintf((char *) Tx,"\n\rFound  Tag with  UID    %2.2X %2.2X %2.2X %2.2X\n\r",UidCL1[0],UidCL1[1],UidCL1[2],UidCL1[3]);
+		HAL_UART_Transmit(&huart1, (uint8_t *)Tx, t, 1000);
+		break;
+	  }
+	  if( RxOK ){
+		  Tx[11] = 0;
+		  int s = sscanf((char *)Tx,"%hhx %hhx %hhx %hhx",&UidCL1[0], &UidCL1[1], &UidCL1[2], &UidCL1[3]);
+		  if(s == 4){
+			t = sprintf((char *) Tx,"\n\rInput  UID    %2.2X %2.2X %2.2X %2.2X\n\r",UidCL1[0],UidCL1[1],UidCL1[2],UidCL1[3]);
+			HAL_UART_Transmit(&huart1, (uint8_t *)Tx, t, 1000);
+			break;
+		  }else{
+			t = sprintf((char *) Tx,"\n\rERROR Input  UID\n\r");
+			HAL_UART_Transmit(&huart1, (uint8_t *)Tx, t, 1000);
+			  RxOK = 0;
+			  HAL_UART_Receive_DMA(&huart1, Tx, 11);
+			continue;
+		  }
+	  }
 	  tmp ='.';
 	  HAL_UART_Transmit(&huart1,&tmp,1,1000);
 	  HAL_Delay(20);
 	  for(i = 0;(i < 5) && !(fv_1 = getFirmwareVersion(&hspi1)); i++);
 	  if(i == 5){
-		   HAL_UART_Transmit(&huart1,N_con_A,(sizeof(N_con_A) - 1),1000);
+		   HAL_UART_Transmit(&huart1,N_con_A,(sizeof(N_con_A) - 1),500);
 		   while(1);
 	  }
 	  SAM_Config(&hspi1);
+
   }
 
-	t = sprintf((char *) Tx,"\n\rFound  Tag with  UID    0x%2.2X%2.2X%2.2X%2.2X\n\r",UidCL1[0],UidCL1[1],UidCL1[2],UidCL1[3]);
-	HAL_UART_Transmit(&huart1, (uint8_t *)Tx, t, 1000);
 
 #endif   //DEBUG
 
@@ -411,6 +441,21 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE BEGIN USART1_Init 2 */
 
   /* USER CODE END USART1_Init 2 */
+
+}
+
+/** 
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void) 
+{
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
 
 }
 
